@@ -55,6 +55,11 @@ impl ProviderArchive {
         self.libraries.keys().cloned().collect()
     }
 
+    /// Retrieves the raw bytes for a given target
+    pub fn target_bytes(&self, target: &str) -> Option<Vec<u8>> {
+        self.libraries.get(target).cloned()
+    }
+
     /// Returns the embedded claims associated with this archive. Note that claims are not available
     /// while building a new archive. They are only available after the archive has been written
     /// or if the archive was loaded from an existing file
