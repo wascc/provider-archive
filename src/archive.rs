@@ -13,7 +13,6 @@ const CLAIMS_JWT_FILE: &str = "claims.jwt";
 /// A provider archive is a specialized ZIP file that contains a set of embedded and signed claims
 /// (a .JWT file) as well as a list of binary files, one plugin library for each supported
 /// target architecture and OS combination
-#[derive(Debug)]
 pub struct ProviderArchive {
     pub libraries: HashMap<String, Vec<u8>>,
     pub capid: String,
@@ -183,7 +182,7 @@ fn generate_hashes(libraries: &HashMap<String, Vec<u8>>) -> HashMap<String, Stri
     let mut hm = HashMap::new();
     for (target, lib) in libraries.iter() {
         let hash = hash_bytes(lib);
-        hm.insert(target.to_string(), hash.clone());
+        hm.insert(target.to_string(), hash);
     }
 
     hm
