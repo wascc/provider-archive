@@ -14,13 +14,13 @@ const CLAIMS_JWT_FILE: &str = "claims.jwt";
 /// (a .JWT file) as well as a list of binary files, one plugin library for each supported
 /// target architecture and OS combination
 pub struct ProviderArchive {
-    pub libraries: HashMap<String, Vec<u8>>,
-    pub capid: String,
-    pub name: String,
-    pub vendor: String,
-    pub rev: Option<i32>,
-    pub ver: Option<String>,
-    pub claims: Option<Claims<CapabilityProvider>>,
+    libraries: HashMap<String, Vec<u8>>,
+    capid: String,
+    name: String,
+    vendor: String,
+    rev: Option<i32>,
+    ver: Option<String>,
+    claims: Option<Claims<CapabilityProvider>>,
 }
 
 impl ProviderArchive {
