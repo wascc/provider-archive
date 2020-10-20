@@ -72,9 +72,9 @@ impl ProviderArchive {
     /// in this archive will be validated, and the file hashes contained in those claims will be compared and
     /// verified against hashes computed at load time. This prevents the contents of the archive from being modified
     /// without the embedded claims being re-signed
-    pub fn try_load(input: &Path) -> Result<ProviderArchive> {
+    pub fn try_load(input: &[u8]) -> Result<ProviderArchive> {
         let mut libraries = HashMap::new();
-        let mut par = tar::Archive::new(File::open(input)?);
+        let mut par = tar::Archive::new(Cursor::new(input));
         let mut c: Option<Claims<CapabilityProvider>> = None;
 
         let entries = par.entries()?;
@@ -221,7 +221,7 @@ mod test {
     use crate::ProviderArchive;
     use crate::Result;
     use std::fs::File;
-    use std::path::Path;
+    use std::io::Read;
     use wascap::prelude::KeyPair;
 
     #[test]
@@ -238,10 +238,10 @@ mod test {
         let issuer = KeyPair::new_account();
         let subject = KeyPair::new_service();
 
-        let mut f = File::create("./test.par")?;
+        let mut f = File::create("./writetest.par")?;
         arch.write(&mut f, &issuer, &subject)?;
 
-        let _ = std::fs::remove_file("./test.par");
+        let _ = std::fs::remove_file("./writetest.par");
         Ok(())
     }
 
@@ -258,17 +258,21 @@ mod test {
         let issuer = KeyPair::new_account();
         let subject = KeyPair::new_service();
 
-        let mut f = File::create("./test1.par")?;
+        let mut f = File::create("./shoulderr.par")?;
         arch.write(&mut f, &issuer, &subject)?;
 
-        let arch2 = ProviderArchive::try_load(Path::new("./test1.par"));
+        let mut buf2 = Vec::new();
+        let mut f2 = File::open("./shoulderr.par")?;
+        f2.read_to_end(&mut buf2)?;
+
+        let arch2 = ProviderArchive::try_load(&buf2);
 
         match arch2 {
             Ok(_notok) => panic!("Loading an archive without any libraries should fail"),
             Err(_e) => (),
         }
 
-        let _ = std::fs::remove_file("./test1.par");
+        let _ = std::fs::remove_file("./shoulderr.par");
         Ok(())
     }
 
@@ -290,11 +294,15 @@ mod test {
         let subject = KeyPair::new_service();
 
         // Generate the .par file with embedded claims.jwt file (needs a service and an account key)
-        let mut f = File::create("./test2.par")?;
+        let mut f = File::create("./firstarchive.par")?;
         arch.write(&mut f, &issuer, &subject)?;
 
+        let mut buf2 = Vec::new();
+        let mut f2 = File::open("./firstarchive.par")?;
+        f2.read_to_end(&mut buf2)?;
+
         // Make sure the file we wrote can be read back in with no data loss
-        let mut arch2 = ProviderArchive::try_load(Path::new("./test2.par"))?;
+        let mut arch2 = ProviderArchive::try_load(&buf2)?;
         assert_eq!(arch.capid, arch2.capid);
         assert_eq!(
             arch.libraries[&"aarch64-linux".to_string()].len(),
@@ -304,11 +312,15 @@ mod test {
 
         // Another common task - read an existing archive and add another library file to it
         arch2.add_library("mips-linux", b"bluhbluh")?;
-        let mut f3 = File::create("./test3.par")?;
+        let mut f3 = File::create("./secondarchive.par")?;
         arch2.write(&mut f3, &issuer, &subject)?;
 
+        let mut buf3 = Vec::new();
+        let mut f3 = File::open("./secondarchive.par")?;
+        f3.read_to_end(&mut buf3)?;
+
         // Make sure the re-written/modified archive looks the way we expect
-        let arch3 = ProviderArchive::try_load(Path::new("./test3.par"))?;
+        let arch3 = ProviderArchive::try_load(&buf3)?;
         assert_eq!(arch3.capid, arch2.capid);
         assert_eq!(
             arch3.libraries[&"aarch64-linux".to_string()].len(),
@@ -317,8 +329,8 @@ mod test {
         assert_eq!(arch3.claims().unwrap().subject, subject.public_key());
         assert_eq!(arch3.targets().len(), 4);
 
-        let _ = std::fs::remove_file("./test2.par");
-        let _ = std::fs::remove_file("./test3.par");
+        let _ = std::fs::remove_file("./firstarchive.par");
+        let _ = std::fs::remove_file("./secondarchive.par");
 
         Ok(())
     }
