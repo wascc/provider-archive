@@ -226,7 +226,7 @@ fn sha256_digest<R: Read>(mut reader: R) -> Result<Digest> {
 
 pub fn compress(par: &[u8]) -> Result<Vec<u8>> {
     let mut c = ZlibEncoder::new(Vec::new(), Compression::best());
-    c.write_all(par);
+    c.write_all(par)?;
     c.finish().map_err(|e| e.into())
 }
 
