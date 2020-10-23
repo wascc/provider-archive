@@ -1,10 +1,13 @@
 use crate::Result;
 use data_encoding::HEXUPPER;
+use flate2::read::GzDecoder;
+use flate2::write::ZlibEncoder;
+use flate2::Compression;
 use ring::digest::{Context, Digest, SHA256};
 use std::collections::HashMap;
 use std::fs::File;
+use std::io::prelude::*;
 use std::io::{copy, Cursor, Read};
-use std::path::Path;
 use std::path::PathBuf;
 use wascap::jwt::{CapabilityProvider, Claims};
 use wascap::prelude::KeyPair;
@@ -72,9 +75,14 @@ impl ProviderArchive {
     /// in this archive will be validated, and the file hashes contained in those claims will be compared and
     /// verified against hashes computed at load time. This prevents the contents of the archive from being modified
     /// without the embedded claims being re-signed
-    pub fn try_load(input: &[u8]) -> Result<ProviderArchive> {
+    pub fn try_load(input: &[u8], compressed: bool) -> Result<ProviderArchive> {
         let mut libraries = HashMap::new();
-        let mut par = tar::Archive::new(Cursor::new(input));
+        let archive = if compressed {
+            decompress(input)?
+        } else {
+            input.to_vec()
+        };
+        let mut par = tar::Archive::new(Cursor::new(archive));
         let mut c: Option<Claims<CapabilityProvider>> = None;
 
         let entries = par.entries()?;
@@ -216,6 +224,20 @@ fn sha256_digest<R: Read>(mut reader: R) -> Result<Digest> {
     Ok(context.finish())
 }
 
+pub fn compress(par: &[u8]) -> Result<Vec<u8>> {
+    let mut c = ZlibEncoder::new(Vec::new(), Compression::best());
+    c.write_all(par);
+    c.finish().map_err(|e| e.into())
+}
+
+pub fn decompress(par: &[u8]) -> Result<Vec<u8>> {
+    let mut d = GzDecoder::new(par);
+    let mut buf = Vec::new();
+    d.read_to_end(&mut buf)?;
+
+    Ok(buf)
+}
+
 #[cfg(test)]
 mod test {
     use crate::ProviderArchive;
@@ -265,7 +287,7 @@ mod test {
         let mut f2 = File::open("./shoulderr.par")?;
         f2.read_to_end(&mut buf2)?;
 
-        let arch2 = ProviderArchive::try_load(&buf2);
+        let arch2 = ProviderArchive::try_load(&buf2, false);
 
         match arch2 {
             Ok(_notok) => panic!("Loading an archive without any libraries should fail"),
@@ -302,7 +324,7 @@ mod test {
         f2.read_to_end(&mut buf2)?;
 
         // Make sure the file we wrote can be read back in with no data loss
-        let mut arch2 = ProviderArchive::try_load(&buf2)?;
+        let mut arch2 = ProviderArchive::try_load(&buf2, false)?;
         assert_eq!(arch.capid, arch2.capid);
         assert_eq!(
             arch.libraries[&"aarch64-linux".to_string()].len(),
@@ -320,7 +342,7 @@ mod test {
         f3.read_to_end(&mut buf3)?;
 
         // Make sure the re-written/modified archive looks the way we expect
-        let arch3 = ProviderArchive::try_load(&buf3)?;
+        let arch3 = ProviderArchive::try_load(&buf3, false)?;
         assert_eq!(arch3.capid, arch2.capid);
         assert_eq!(
             arch3.libraries[&"aarch64-linux".to_string()].len(),
