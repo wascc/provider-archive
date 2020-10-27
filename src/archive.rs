@@ -404,7 +404,7 @@ mod test {
         let arch2 = ProviderArchive::try_load(&buf3, true)?;
         assert_eq!(arch.capid, arch2.capid);
         assert_eq!(
-            arch.libraries[&"aarch64-linux".to_string()]),
+            arch.libraries[&"aarch64-linux".to_string()],
             arch2.libraries[&"aarch64-linux".to_string()]
         );
         assert_eq!(arch.claims().unwrap().subject, subject.public_key());
