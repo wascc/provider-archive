@@ -339,8 +339,8 @@ mod test {
         let mut arch2 = ProviderArchive::try_load(&buf2, false)?;
         assert_eq!(arch.capid, arch2.capid);
         assert_eq!(
-            arch.libraries[&"aarch64-linux".to_string()].len(),
-            arch2.libraries[&"aarch64-linux".to_string()].len()
+            arch.libraries[&"aarch64-linux".to_string()],
+            arch2.libraries[&"aarch64-linux".to_string()]
         );
         assert_eq!(arch.claims().unwrap().subject, subject.public_key());
 
@@ -356,8 +356,8 @@ mod test {
         let arch3 = ProviderArchive::try_load(&buf3, false)?;
         assert_eq!(arch3.capid, arch2.capid);
         assert_eq!(
-            arch3.libraries[&"aarch64-linux".to_string()].len(),
-            arch2.libraries[&"aarch64-linux".to_string()].len()
+            arch3.libraries[&"aarch64-linux".to_string()],
+            arch2.libraries[&"aarch64-linux".to_string()]
         );
         assert_eq!(arch3.claims().unwrap().subject, subject.public_key());
         assert_eq!(arch3.targets().len(), 4);
@@ -482,16 +482,16 @@ mod test {
         let arch2 = ProviderArchive::try_load(&buf, true)?;
 
         assert_eq!(
-            arch.libraries[&"x86_64-linux".to_string()].len(),
-            arch2.libraries[&"x86_64-linux".to_string()].len()
+            arch.libraries[&"x86_64-linux".to_string()],
+            arch2.libraries[&"x86_64-linux".to_string()]
         );
         assert_eq!(
-            arch.libraries[&"arm-macos".to_string()].len(),
-            arch2.libraries[&"arm-macos".to_string()].len()
+            arch.libraries[&"arm-macos".to_string()],
+            arch2.libraries[&"arm-macos".to_string()]
         );
         assert_eq!(
-            arch.libraries[&"mips64-freebsd".to_string()].len(),
-            arch2.libraries[&"mips64-freebsd".to_string()].len()
+            arch.libraries[&"mips64-freebsd".to_string()],
+            arch2.libraries[&"mips64-freebsd".to_string()]
         );
         assert_eq!(arch.claims(), arch2.claims());
 
