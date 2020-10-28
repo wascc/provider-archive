@@ -14,6 +14,8 @@ use wascap::prelude::KeyPair;
 
 const CLAIMS_JWT_FILE: &str = "claims.jwt";
 
+const GZIP_MAGIC : [u8; 2] = [0x1f, 0x8b];
+
 /// A provider archive is a specialized ZIP file that contains a set of embedded and signed claims
 /// (a .JWT file) as well as a list of binary files, one plugin library for each supported
 /// target architecture and OS combination
@@ -75,9 +77,16 @@ impl ProviderArchive {
     /// in this archive will be validated, and the file hashes contained in those claims will be compared and
     /// verified against hashes computed at load time. This prevents the contents of the archive from being modified
     /// without the embedded claims being re-signed
-    pub fn try_load(input: &[u8], compressed: bool) -> Result<ProviderArchive> {
+    pub fn try_load(input: &[u8]) -> Result<ProviderArchive> {
         let mut libraries = HashMap::new();
-        let archive = if compressed {
+
+        if input.len() < 2 {
+            return Err(
+                "Not enough bytes to be a valid PAR file".into(),
+            );
+        }
+
+        let archive = if input[0..2] == GZIP_MAGIC {
             decompress(input)?
         } else {
             input.to_vec()
@@ -300,7 +309,7 @@ mod test {
         let mut f2 = File::open("./shoulderr.par")?;
         f2.read_to_end(&mut buf2)?;
 
-        let arch2 = ProviderArchive::try_load(&buf2, false);
+        let arch2 = ProviderArchive::try_load(&buf2);
 
         match arch2 {
             Ok(_notok) => panic!("Loading an archive without any libraries should fail"),
@@ -336,7 +345,7 @@ mod test {
         f2.read_to_end(&mut buf2)?;
 
         // Make sure the file we wrote can be read back in with no data loss
-        let mut arch2 = ProviderArchive::try_load(&buf2, false)?;
+        let mut arch2 = ProviderArchive::try_load(&buf2)?;
         assert_eq!(arch.capid, arch2.capid);
         assert_eq!(
             arch.libraries[&"aarch64-linux".to_string()],
@@ -353,7 +362,7 @@ mod test {
         f3.read_to_end(&mut buf3)?;
 
         // Make sure the re-written/modified archive looks the way we expect
-        let arch3 = ProviderArchive::try_load(&buf3, false)?;
+        let arch3 = ProviderArchive::try_load(&buf3)?;
         assert_eq!(arch3.capid, arch2.capid);
         assert_eq!(
             arch3.libraries[&"aarch64-linux".to_string()],
@@ -401,7 +410,7 @@ mod test {
         f3.read_to_end(&mut buf3)?;
 
         // Make sure the file we wrote compressed can be read back in with no data loss
-        let arch2 = ProviderArchive::try_load(&buf3, true)?;
+        let arch2 = ProviderArchive::try_load(&buf3)?;
         assert_eq!(arch.capid, arch2.capid);
         assert_eq!(
             arch.libraries[&"aarch64-linux".to_string()],
@@ -479,7 +488,7 @@ mod test {
         let mut f = File::open(format!("{}.par.gz", filename))?;
         f.read_to_end(&mut buf)?;
 
-        let arch2 = ProviderArchive::try_load(&buf, true)?;
+        let arch2 = ProviderArchive::try_load(&buf)?;
 
         assert_eq!(
             arch.libraries[&"x86_64-linux".to_string()],
